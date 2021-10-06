@@ -15,8 +15,8 @@ export class News extends Component {
     pageSize: PropTypes.number,
   };
 
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
       articles: [],
       loading: false,
@@ -25,15 +25,20 @@ export class News extends Component {
   }
 
   updateNews = async () => {
-    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=your_api_key&page=${this.state.page}&pageSize=${this.props.pageSize}`;
+    this.props.setProgress(0)
+    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=YOUR_API_KEY&page=${this.state.page}&pageSize=${this.props.pageSize}`;
     this.setState({ loading: true });
+    this.props.setProgress(20)
     let data = await fetch(url);
+    this.props.setProgress(40)
     let parsedData = await data.json();
+    this.props.setProgress(80)
     this.setState({
       articles: parsedData.articles,
       totalResults: parsedData.totalResults,
       loading: false,
     });
+    this.props.setProgress(100)
   };
 
   async componentDidMount() {
@@ -56,7 +61,7 @@ export class News extends Component {
     return (
       <>
         <div className="container my-3">
-          <h1 className="text-center text-capitalize">
+          <h1 style={{margin: "35px 0px"}} className="text-center text-capitalize">
             NewsMonkey - {this.props.category}
           </h1>
           {this.state.loading && <Spinner />}
@@ -107,9 +112,9 @@ export class News extends Component {
           </div>
         </div>
         <footer
-          class="container-fluid bg-dark py-3 text-light mt-5"
+          className="container-fluid bg-dark py-3 text-light mt-5"
         >
-          <p class="mb-0 text-center">Copyright © 2021-2022 NewsMonkey Made By Tejas</p>
+          <p className="mb-0 text-center">Copyright © 2021-2022 NewsMonkey Made By Tejas</p>
         </footer>
       </>
     );
