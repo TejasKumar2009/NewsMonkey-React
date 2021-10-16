@@ -1,126 +1,148 @@
-import React, { Component } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import PropTypes from "prop-types";
+import { useLocation, useHistory } from "react-router-dom";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 import imageNotFound from "../images/image_not_found.png";
 import Spinner from "./Spinner";
 import NewsItem from "./NewsItem";
 
-export class News extends Component {
-  static defaultProps = {
-    country: "in",
-    pageSize: 8,
-  };
-  static propTypes = {
-    country: PropTypes.string,
-    pageSize: PropTypes.number,
-  };
+const News = (props) => {
+  const [articles, setArticles] = useState([]);
+  const [totalResults, setTotalResults] = useState();
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const location = useLocation();
+  const history = useHistory();
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      articles: [],
-      loading: false,
-      page: 1,
-    };
-  }
-
-  updateNews = async () => {
-    this.props.setProgress(0);
-    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=d4c85434e17d415f87d3a4726613c9c8&page=${this.state.page}&pageSize=${this.props.pageSize}`;
-    this.setState({ loading: true });
-    this.props.setProgress(20);
+  const updateNews = async () => {
+    props.setProgress(0);
+    let url;
+    if (!props.searchNews.searchNews) {
+      url = `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=${props.apiKey}&page=${page}&pageSize=${props.pageSize}`;
+    } else {
+      // setTotalResults(100)
+      url = `https://newsapi.org/v2/everything?q=${props.searchNews.searchNews}&apiKey=${props.apiKey}&page=${page}&pageSize=${props.pageSize}`;
+    }
+    setLoading(true);
+    props.setProgress(20);
     let data = await fetch(url);
-    this.props.setProgress(40);
+    props.setProgress(40);
     let parsedData = await data.json();
-    this.props.setProgress(80);
-    this.setState({
-      articles: parsedData.articles,
-      totalResults: parsedData.totalResults,
-      loading: false,
-    });
-    this.props.setProgress(100);
+    props.setProgress(80);
+    setArticles(parsedData.articles);
+    setTotalResults(parsedData.totalResults);
+    setLoading(false);
+    props.setProgress(100);
   };
 
-  async componentDidMount() {
-    this.updateNews();
-  }
+  useEffect(() => {
+    if (
+      (location.pathname === "/top-headlines/general") |
+      (location.pathname === "/top-headlines/business") |
+      (location.pathname === "/top-headlines/entertainment") |
+      (location.pathname === "/top-headlines/health") |
+      (location.pathname === "/top-headlines/science") |
+      (location.pathname === "/top-headlines/sports") |
+      (location.pathname === "/top-headlines/technology")
+    ) {
+      props.searchNews.setSearchNews(null);
+    }
+    // eslint-disable-next-line
+    updateNews();
+  }, [props.searchNews.searchNews]);
 
-  handlePrevClick = async () => {
-    this.setState({ page: this.state.page - 1 });
-    this.updateNews();
-  };
-
-  handleNextClick = async () => {
-    this.setState({
-      page: this.state.page + 1,
-    });
-    this.updateNews();
-  };
-
-  fetchMoreData = async () => {
-    this.setState({ page: this.state.page + 1 });
-    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=d4c85434e17d415f87d3a4726613c9c8&page=${this.state.page}&pageSize=${this.props.pageSize}`;
-    this.setState({ loading: true });
+  const fetchMoreData = async () => {
+    let url;
+    if (!props.searchNews.searchNews) {
+      url = `https://newsapi.org/v2/top-headlines?country=${
+        props.country
+      }&category=${props.category}&apiKey=${props.apiKey}&page=${page + 1}&pageSize=${
+        props.pageSize
+      }`;
+      setPage(page + 1);
+    } else {
+      // setTotalResults(100)
+      url = `https://newsapi.org/v2/everything?q=${
+        props.searchNews.searchNews
+      }&apiKey=${props.apiKey}&page=${
+        page + 1 > Math.ceil(totalResults / props.pageSize) ? null : page + 1
+      }&pageSize=${props.pageSize}`;
+      if (page + 1 > Math.ceil(totalResults / props.pageSize)) {
+      } else {
+        setPage(page + 1);
+      }
+    }
+    setLoading(true);
     let data = await fetch(url);
     let parsedData = await data.json();
-    this.setState({
-      articles: this.state.articles.concat(parsedData.articles),
-      totalResults: parsedData.totalResults,
-      loading: false,
-    });
+    setArticles(articles.concat(parsedData.articles));
+    {
+      props.searchNews.searchNews
+        ? setTotalResults(100)
+        : setTotalResults(parsedData.totalResults);
+    }
+    setLoading(false);
+    // if (articles.length+props.pageSize === totalResults) {
+    //   console.log("khatam");
+    //   props.searchNews.setSearchNews(null)
+    // }
   };
 
-  render() {
-    return (
-      <>
-        <h1
-          style={{ marginBottom: "35", marginTop: "80px" }}
-          className="text-center text-capitalize"
-        >
-          NewsMonkey - {this.props.category}
-        </h1>
-        {/* {this.state.loading && <Spinner />} */}
-        <InfiniteScroll
-          dataLength={this.state.articles.length}
-          next={this.fetchMoreData}
-          hasMore={this.state.articles.length !== this.state.totalResults}
-          loader={<Spinner />}
-        >
-          <div className="container">
-            <div className="row">
-              {this.state.articles.map((element) => {
-                return (
-                  <div className="col-md-4 my-4" key={element.url}>
-                    <NewsItem
-                      title={element.title ? element.title : "Title Not Found!"}
-                      description={
-                        element.description
-                          ? element.description
-                          : "Description Not Found!"
-                      }
-                      imageUrl={
-                        element.urlToImage ? element.urlToImage : imageNotFound
-                      }
-                      newsUrl={element.url}
-                      date={element.publishedAt}
-                      author={element.author}
-                      source={element.source.name}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+  return (
+    <>
+      <h1
+        style={{ marginBottom: "35", marginTop: "80px" }}
+        className="text-center text-capitalize"
+      >
+        {props.searchNews.searchNews
+          ? `NewsMonkey - Search Results for ${props.searchNews.searchNews}`
+          : `NewsMonkey - Top ${props.category} Headlines`}
+      </h1>
+      <InfiniteScroll
+        dataLength={articles.length}
+        next={fetchMoreData}
+        hasMore={articles.length !== totalResults}
+        // hasMore={articles.length !== totalResults}
+        loader={loading && <Spinner />}
+      >
+        <div className="container">
+          <div className="row">
+            {articles.map((element) => {
+              return (
+                <div className="col-md-4 my-4" key={element.url}>
+                  <NewsItem
+                    title={element.title ? element.title : "Title Not Found!"}
+                    description={
+                      element.description
+                        ? element.description
+                        : "Description Not Found!"
+                    }
+                    imageUrl={
+                      element.urlToImage ? element.urlToImage : imageNotFound
+                    }
+                    newsUrl={element.url}
+                    date={element.publishedAt}
+                    author={element.author}
+                    source={element.source.name}
+                  />
+                </div>
+              );
+            })}
           </div>
-        </InfiniteScroll>
-        <footer className="container-fluid bg-dark py-3 text-light mt-5">
-          <p className="mb-0 text-center">
-            Copyright © 2021-2022 NewsMonkey Made By Tejas
-          </p>
-        </footer>
-      </>
-    );
-  }
-}
+        </div>
+      </InfiniteScroll>
+    </>
+  );
+};
+
+News.defaultProps = {
+  country: "in",
+  pageSize: 8,
+};
+News.propTypes = {
+  country: PropTypes.string,
+  pageSize: PropTypes.number,
+};
 
 export default News;
